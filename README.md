@@ -1,2 +1,45 @@
 # Data_Gen
-Repositorio destinado a la documentación de practicum 1.2 en relación al proyecto de genética
+
+Repositorio destinado a la documentación del Practicum 1.2 relacionado con un proyecto de genética y análisis de datos GWAS.
+
+## Descripción
+
+En este repositorio se trabajará con la base de datos:
+
+[pgc-psychiatric-gwas-harmonized](https://huggingface.co/datasets/lighteternal/pgc-psychiatric-gwas-harmonized?utm_source=chatgpt.com)
+
+La base contiene información genética relacionada con distintos trastornos psiquiátricos, incluyendo:
+
+- ADHD
+- Anxiety
+- Autism
+- Bipolar Disorder
+- MDD
+- OCD
+- PTSD
+- Schizophrenia
+- Substance Use
+- Entre otros
+
+## Información de la base de datos
+
+- Número total de filas: 226.441.199
+- Tamaño aproximado: 11.5 GB
+- Total de columnas: 32
+- Formato principal: `.parquet`
+
+Cada trastorno posee su propio archivo parquet, el cual será procesado y analizado individualmente.
+
+## Herramientas utilizadas
+
+- [Visual Studio Code](https://code.visualstudio.com/?utm_source=chatgpt.com)
+- [Python](https://www.python.org/?utm_source=chatgpt.com)
+- [Jupyter Notebook](https://jupyter.org/?utm_source=chatgpt.com)
+
+## Librerías utilizadas
+
+- [Polars](https://pola.rs/?utm_source=chatgpt.com)
+
+## Objetivo
+
+Analizar datasets genéticos de gran tamaño utilizando herramientas optimizadas para procesamiento de datos masivos, explorando estructuras, columnas, estadísticas y posibles patrones asociados a trastornos psiquiátricos.
