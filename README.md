@@ -27,6 +27,7 @@ La base contiene información genética relacionada con distintos trastornos psi
 - Tamaño aproximado: 11.5 GB
 - Total de columnas: 32
 - Formato principal: `.parquet`
+- Diccionario de Datos: https://docs.google.com/document/d/1sHQ7o-IevsObS7qBHubJnO53ufvYo9_v/edit?usp=sharing&ouid=110155048301178982627&rtpof=true&sd=true
 
 Cada trastorno posee su propio archivo parquet, el cual será procesado y analizado individualmente.
 
