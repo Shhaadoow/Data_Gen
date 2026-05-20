@@ -44,3 +44,15 @@ Cada trastorno posee su propio archivo parquet, el cual será procesado y analiz
 ## Objetivo
 
 Analizar datasets genéticos de gran tamaño utilizando herramientas optimizadas para procesamiento de datos masivos, explorando estructuras, columnas, estadísticas y posibles patrones asociados a trastornos psiquiátricos.
+
+## AnálisisG1 (Michael y Kenny)
+
+ptsd.parquet = 2.171 GB
+adhd.parquet = 1.206 GB
+eating_disorders.parquet = 0.965 GB
+
+## AnálisisG2 (Eduardo y Pablo)
+
+mdd.parquet = 1.246 GB
+schizophrenia.parquet = 0.943 GB
+autism.parquet = 0.858 GB
