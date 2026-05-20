@@ -45,7 +45,7 @@ Cada trastorno posee su propio archivo parquet, el cual será procesado y analiz
 
 Analizar datasets genéticos de gran tamaño utilizando herramientas optimizadas para procesamiento de datos masivos, explorando estructuras, columnas, estadísticas y posibles patrones asociados a trastornos psiquiátricos.
 
-## AnálisisG1 (Michael y Kenny)
+## AnálisisG1 (Michael Alejandro Carrión y Kenny)
 
 - ptsd.parquet = 2.171 GB
 - adhd.parquet = 1.206 GB
