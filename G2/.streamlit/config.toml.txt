@@ -1,0 +1,5 @@
+[server]
+maxUploadSize = 3000
+maxMessageSize = 3000
+
+Hacer 3 flujos a elección y en base a eso 3 skecth, actuazlizar el backlog en jira y hacer un documento sobre las decisiones de diseño para las pantallas.
