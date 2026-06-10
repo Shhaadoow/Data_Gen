@@ -11,8 +11,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import os
-import warnings
+import io, warnings
 warnings.filterwarnings("ignore")
 
 # ── Configuración de página ────────────────────────────────────────────────────
@@ -39,11 +38,13 @@ st.markdown("""
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
-def cargar_parquet(ruta: str):
-    # Lee directamente desde el disco, ahorrando RAM
-    df = pd.read_parquet(ruta)
-    tabla = pq.read_table(ruta)
-    meta = pq.read_metadata(ruta)
+def cargar_parquet(datos_bytes: bytes):
+    buf = io.BytesIO(datos_bytes)
+    df = pd.read_parquet(buf)
+    buf.seek(0)
+    tabla = pq.read_table(buf)
+    buf.seek(0)
+    meta = pq.read_metadata(buf)
     return df, tabla, meta
 
 
@@ -63,31 +64,22 @@ def col_tipos(df, tabla):
 with st.sidebar:
     st.title("📦 Parquet Explorer")
     st.divider()
-    
-    # 1. Ruta configurada directamente en el script
-    ruta_archivo = r"../data/analysis/bpd.parquet"
-    
-    st.markdown("**📂 Archivo local configurado:**")
-    st.caption(ruta_archivo)
-    
-    archivo_valido = False
-    if os.path.exists(ruta_archivo) and ruta_archivo.endswith('.parquet'):
-        archivo_valido = True
-    else:
-        st.error("Ruta inválida o el archivo no existe en tu computadora.")
-            
+    archivo = st.file_uploader("Sube tu archivo .parquet", type=["parquet"])
     st.divider()
 
-    if archivo_valido:
-        st.success(f"✅ Archivo detectado")
+    if archivo:
+        st.success(f"✅ {archivo.name}")
         MAX_FILAS_PREVIEW = st.slider("Filas en vista previa", 5, 100, 10, 5)
         MAX_HIST_COLS = st.slider("Máx. columnas en histogramas", 3, 20, 9, 3)
         TOP_CATS = st.slider("Top valores categóricos", 5, 30, 10, 5)
+    else:
+        st.info("Sube un archivo .parquet para comenzar")
+
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 st.title("📦 Lector de Archivos Parquet")
 
-if not archivo_valido:
+if not archivo:
     st.markdown("""
     ### Bienvenido
     Esta app te permite explorar cualquier archivo `.parquet` de forma interactiva:
@@ -98,14 +90,13 @@ if not archivo_valido:
     - 🔥 Mapa de correlaciones
     - 🗄️ Metadatos del archivo Parquet
 
-    **👈 Ingresa la ruta de tu archivo en el panel izquierdo para comenzar.**
-    *(Al leer directo del disco, soporta archivos de más de 3 GB sin límites de subida de Streamlit).*
+    **👈 Sube un archivo en el panel izquierdo para comenzar.**
     """)
     st.stop()
 
 # Cargar datos
-with st.spinner("Cargando archivo pesado desde el disco..."):
-    df, tabla, meta = cargar_parquet(ruta_archivo)
+with st.spinner("Cargando archivo…"):
+    df, tabla, meta = cargar_parquet(archivo.getvalue())
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TARJETAS DE RESUMEN
@@ -115,7 +106,7 @@ c1, c2, c3, c4, c5 = st.columns(5)
 mem_mb = df.memory_usage(deep=True).sum() / 1024**2
 c1.metric("Filas", f"{df.shape[0]:,}")
 c2.metric("Columnas", df.shape[1])
-c3.metric("Memoria RAM", f"{mem_mb:.2f} MB")
+c3.metric("Memoria", f"{mem_mb:.2f} MB")
 c4.metric("Grupos de filas", meta.num_row_groups)
 c5.metric("Nulos totales", int(df.isnull().sum().sum()))
 
@@ -218,18 +209,17 @@ with tab4:
         ncols_g = min(3, n)
         nrows_g = (n + ncols_g - 1) // ncols_g
 
-        if nrows_g > 0:
-            fig_hist = make_subplots(rows=nrows_g, cols=ncols_g, subplot_titles=list(cols_num))
-            for i, col in enumerate(cols_num):
-                r, c = divmod(i, ncols_g)
-                datos = num_df[col].dropna()
-                fig_hist.add_trace(
-                    go.Histogram(x=datos, name=col, marker_color="steelblue",
-                                nbinsx=30, showlegend=False),
-                    row=r + 1, col=c + 1,
-                )
-            fig_hist.update_layout(height=max(300, 300 * nrows_g), title_text="Histogramas")
-            st.plotly_chart(fig_hist, use_container_width=True)
+        fig_hist = make_subplots(rows=nrows_g, cols=ncols_g, subplot_titles=list(cols_num))
+        for i, col in enumerate(cols_num):
+            r, c = divmod(i, ncols_g)
+            datos = num_df[col].dropna()
+            fig_hist.add_trace(
+                go.Histogram(x=datos, name=col, marker_color="steelblue",
+                             nbinsx=30, showlegend=False),
+                row=r + 1, col=c + 1,
+            )
+        fig_hist.update_layout(height=300 * nrows_g, title_text="Histogramas")
+        st.plotly_chart(fig_hist, use_container_width=True)
 
         # Box plots
         col_box = st.selectbox("Box plot — elegir columna", cols_num, key="box")
