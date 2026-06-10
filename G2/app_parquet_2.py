@@ -176,6 +176,38 @@ def col_tipos(df, schema):
         "Únicos":       df.nunique(),
     })
 
+# ══════════════════════════════════════════════════════════════════════════════
+# HELPER DE WIKIPEDIA (CON CACHÉ)
+# ══════════════════════════════════════════════════════════════════════════════
+@st.cache_data(show_spinner=False, ttl=86400) # ttl=86400 guarda la memoria por 24 horas
+def buscar_en_wikipedia(termino):
+    """Busca en Wikipedia y guarda el resultado en caché para búsquedas repetidas."""
+    import requests
+    headers = {"User-Agent": "UTPL-Data-Explorer/2.0 (Contacto: Pablo)"}
+    search_url = "https://es.wikipedia.org/w/api.php"
+    params = {
+        "action": "query", "list": "search", "srsearch": termino, 
+        "format": "json", "utf8": "1", "srlimit": 1
+    }
+    
+    try:
+        r = requests.get(search_url, params=params, headers=headers, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        
+        if data.get("query", {}).get("search"):
+            titulo = data["query"]["search"][0]["title"]
+            summary_url = f"https://es.wikipedia.org/api/rest_v1/page/summary/{titulo}"
+            r_sum = requests.get(summary_url, headers=headers, timeout=10)
+            r_sum.raise_for_status()
+            data_sum = r_sum.json()
+            
+            texto = data_sum.get("extract", "No se encontró un resumen simple.")
+            imagen = data_sum.get("thumbnail", {}).get("source", None)
+            return titulo, texto, imagen, None
+        return None, None, None, "No encontrado"
+    except Exception as e:
+        return None, None, None, str(e)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
@@ -311,46 +343,49 @@ st.divider()
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS PRINCIPALES
 # ══════════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-    "👁️ Vista previa",
-    "🗂️ Esquema",
-    "🕳️ Nulos",
-    "📊 Numéricas",
-    "🔠 Categóricas",
-    "🔥 Correlaciones",
-    "🔍 Buscador por columna",
-    "🗄️ Metadatos",
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    "👁️ Vista previa", "🗂️ Esquema", "🕳️ Nulos", "📊 Numéricas", 
+    "🔠 Categóricas", "🔥 Correlaciones", "🤖 Diccionario", "🗄️ Metadatos", "🛡️ Anomalías"
 ])
 
 
-# ── Tab 1 · Vista previa ──────────────────────────────────────────────────────
+# ── Tab 1 · Vista previa y Filtros ────────────────────────────────────────────
 with tab1:
     st.markdown(f"**Primeras {MAX_FILAS_PREVIEW} filas de la muestra**")
     st.dataframe(df.head(MAX_FILAS_PREVIEW), use_container_width=True)
 
-    with st.expander("Últimas filas"):
-        st.dataframe(df.tail(MAX_FILAS_PREVIEW), use_container_width=True)
+    with st.expander("🎛️ Filtros Avanzados (Tipo Excel)"):
+        st.markdown("Selecciona una columna para aplicar filtros y cruzar datos:")
+        
+        # UI dinámica para filtros
+        col_filtro = st.selectbox("Columna a filtrar", df.columns)
+        tipo_col = str(df[col_filtro].dtype)
+        
+        if "float" in tipo_col or "int" in tipo_col:
+            min_val = float(df[col_filtro].min())
+            max_val = float(df[col_filtro].max())
+            rango = st.slider(f"Rango para {col_filtro}", min_val, max_val, (min_val, max_val))
+            mascara = df[col_filtro].between(rango[0], rango[1])
+            
+        elif df[col_filtro].nunique() < 40: # Categóricas con pocas opciones
+            opciones = df[col_filtro].dropna().unique()
+            seleccion = st.multiselect(f"Valores de {col_filtro}", opciones, default=opciones)
+            mascara = df[col_filtro].isin(seleccion)
+            
+        else: # Texto libre
+            texto_buscar = st.text_input(f"Contiene texto en {col_filtro}")
+            if texto_buscar:
+                mascara = df[col_filtro].astype(str).str.contains(texto_buscar, case=False, na=False)
+            else:
+                mascara = pd.Series(True, index=df.index)
 
-    with st.expander("🔍 Buscar / filtrar"):
-        col_filtro = st.selectbox("Columna", df.columns, key="col_filtro")
-        val_filtro = st.text_input("Contiene (texto) / igual (número)")
-        if val_filtro:
-            try:
-                mascara = df[col_filtro].astype(str).str.contains(val_filtro, case=False, na=False)
-                st.dataframe(df[mascara].head(200), use_container_width=True)
-                st.caption(f"{mascara.sum():,} filas coinciden")
-            except Exception as e:
-                st.error(f"Error: {e}")
+        df_filtrado = df[mascara]
+        st.markdown(f"**Resultados: {len(df_filtrado):,} filas encontradas**")
+        st.dataframe(df_filtrado.head(200), use_container_width=True)
 
-    with st.expander("📥 Descargar muestra como CSV"):
-        n_export = st.slider("Filas a exportar", 100, min(10_000, len(df)), 1000, 100)
-        csv = df.head(n_export).to_csv(index=False).encode("utf-8")
-        st.download_button(
-            "⬇️ Descargar CSV",
-            data=csv,
-            file_name=f"{nombre_archivo.replace('.parquet','')}_muestra.csv",
-            mime="text/csv"
-        )
+    with st.expander("📥 Descargar muestra filtrada como CSV"):
+        csv = df_filtrado.to_csv(index=False).encode("utf-8")
+        st.download_button("⬇️ Descargar CSV", data=csv, file_name="datos_filtrados.csv", mime="text/csv")
 
 
 # ── Tab 2 · Esquema ───────────────────────────────────────────────────────────
@@ -642,35 +677,105 @@ with tab6:
             st.dataframe(pares_df.head(30), use_container_width=True)
 
 
-# ── Tab 7 · Buscador Web por Columna ────────────────────────────────────────────
+# ── Tab 7 · Diccionario Científico Integrado ──────────────────────────────────
 with tab7:
     st.markdown("""
-    ### 🔍 Buscador Científico
-    Como los nombres de las variables biológicas pueden ser confusos, selecciona una columna para buscar rápidamente su significado en la web.
+    ### 📖 Diccionario Científico Integrado
+    Selecciona una variable para obtener una explicación sencilla y una imagen ilustrativa sin salir de la aplicación.
     """)
 
-    col_exp = st.selectbox("Selecciona la variable a investigar", df.columns, key="col_buscar")
+    col_exp = st.selectbox("Selecciona la variable del dataset", df.columns, key="col_buscar")
 
     # Recopilar info de la columna para dar contexto
     serie = df[col_exp]
-    
     col_info1, col_info2, col_info3 = st.columns(3)
     col_info1.metric("Tipo de dato", str(serie.dtype))
     col_info2.metric("Valores únicos", serie.nunique())
     col_info3.metric("% Nulos", f"{serie.isnull().mean()*100:.1f}%")
 
     st.markdown("---")
-    st.markdown(f"**Investigar el significado de `{col_exp}`:**")
+    st.markdown("**¿Qué significa esta variable?**")
     
-    # Crear URLs de búsqueda (agregamos 'biología' para dar contexto)
-    termino_busqueda = f"{col_exp} biologia medicina"
-    url_google = f"https://www.google.com/search?q={termino_busqueda.replace(' ', '+')}"
-    url_wiki = f"https://es.wikipedia.org/w/index.php?search={termino_busqueda.replace(' ', '+')}"
+    # 🧠 AUTO-TRADUCTOR CIENTÍFICO (Nombres exactos de Wikipedia)
+    diccionario_biologico = {
+        # Genética
+        "variant id": "Polimorfismo (biología)",
+        "variant key": "Variante genética",
+        "snp id": "Polimorfismo de nucleótido único",
+        "raw snp id": "Polimorfismo de nucleótido único",
+        "chr": "Cromosoma",
+        "pos": "Locus (genética)",
+        "effect allele": "Alelo",
+        "other allele": "Alelo",
+        "a1": "Alelo",
+        "a2": "Alelo",
+        "maf": "Frecuencia alélica",
+        
+        # Estadística
+        "effect size": "Tamaño del efecto",
+        "effect kind": "Tamaño del efecto", 
+        "se": "Error estándar",
+        "se source": "Error estándar",
+        "pval": "Valor p",
+        "sig tier": "Significación estadística",
+        "info": "Imputación (estadística)",
+        
+        # Clínica / Bioinformática
+        "disorder": "Enfermedad mental",
+        "tested in disorder": "Ensayo clínico",
+        "was flipped": "Direccionalidad (biología molecular)",
+        "is palindromic": "Secuencia palindrómica",
+        "is biallelic acgt": "Alelo",
+        "reference resolved": "Genoma de referencia",
+        "alignment method": "Alineamiento de secuencias",
+        
+        # Metadatos
+        "source repo": "Base de datos biológica",
+        "source config": "Metadato",
+        "source wave": "Estudio longitudinal",
+        "role": "Metadato",
+        "source file": "Metadato",
+        "usable for graph": "Teoría de grafos"
+    }
 
+    # Limpiamos el nombre original
+    nombre_limpio = col_exp.lower().replace("_", " ").replace("-", " ")
+    
+    # Asignamos el título exacto de Wikipedia si existe
+    termino_sugerido = diccionario_biologico.get(nombre_limpio, nombre_limpio)
+
+    termino_busqueda = st.text_input(
+        "Término a buscar (auto-corregido para mejores resultados):", 
+        value=termino_sugerido
+    )
+
+    if st.button("🔍 Extraer Definición e Imagen"):
+        with st.spinner("Buscando en la enciclopedia libre (o leyendo de caché)..."):
+            titulo, texto, imagen, error = buscar_en_wikipedia(termino_busqueda)
+            
+            if error == "No encontrado":
+                st.warning("No encontramos una definición exacta en Wikipedia. Intenta buscarlo en Google.")
+            elif error:
+                st.error(f"Hubo un problema de conexión: {error}")
+            else:
+                st.success(f"✅ **Definición encontrada:** {titulo}")
+                c_text, c_img = st.columns([2, 1])
+                with c_text:
+                    st.write(texto)
+                with c_img:
+                    if imagen:
+                        st.image(imagen, use_container_width=True, caption=titulo)
+                    else:
+                        st.caption("🖼️ No hay imagen disponible para este concepto.")
+
+    # Botones de rescate
+    st.markdown("---")
+    st.caption("¿La explicación no fue suficiente? Busca el concepto completo en la web:")
     c1, c2 = st.columns(2)
-    c1.link_button("🌐 Buscar en Google", url_google, use_container_width=True)
-    c2.link_button("📚 Buscar en Wikipedia", url_wiki, use_container_width=True)
-
+    url_google = f"https://www.google.com/search?q={termino_busqueda.replace(' ', '+')}+genetica"
+    url_wiki = f"https://es.wikipedia.org/w/index.php?search={termino_busqueda.replace(' ', '+')}"
+    c1.link_button("🌐 Profundizar en Google", url_google, use_container_width=True)
+    c2.link_button("📚 Profundizar en Wikipedia", url_wiki, use_container_width=True)
 
 # ── Tab 8 · Metadatos ─────────────────────────────────────────────────────────
 with tab8:
@@ -710,6 +815,66 @@ with tab8:
     st.markdown("**Esquema PyArrow completo**")
     st.code(str(schema), language="text")
 
+# ── Tab 9 · Calidad de Datos (Anomalías) ──────────────────────────────────────
+with tab9:
+    st.markdown("""
+    ### 🛡️ Detección de Outliers (Valores atípicos)
+    Analizamos las columnas numéricas buscando valores biológicamente improbables usando el método estadístico de Rangos Intercuartílicos (IQR).
+    """)
+    
+    num_cols = df.select_dtypes(include="number").columns
+    
+    if len(num_cols) == 0:
+        st.warning("No hay columnas numéricas para analizar.")
+    else:
+        con_outliers = st.checkbox("Ignorar columnas sin anomalías", value=True)
+        resultados_anomalias = []
+        
+        for col in num_cols:
+            serie_anom = df[col].dropna()
+            if len(serie_anom) < 10:
+                continue
+                
+            Q1 = serie_anom.quantile(0.25)
+            Q3 = serie_anom.quantile(0.75)
+            IQR = Q3 - Q1
+            
+            limite_inferior = Q1 - 1.5 * IQR
+            limite_superior = Q3 + 1.5 * IQR
+            
+            # Contar anomalías
+            outliers = serie_anom[(serie_anom < limite_inferior) | (serie_anom > limite_superior)]
+            cantidad = len(outliers)
+            
+            if con_outliers and cantidad == 0:
+                continue
+                
+            resultados_anomalias.append({
+                "Columna": col,
+                "Outliers Detectados": cantidad,
+                "% de Anómalos": f"{(cantidad/len(serie_anom))*100:.2f}%",
+                "Valor Mínimo": serie_anom.min(),
+                "Valor Máximo": serie_anom.max(),
+                "Límites seguros": f"[{limite_inferior:.1f} a {limite_superior:.1f}]"
+            })
+            
+        if resultados_anomalias:
+            df_anomalias = pd.DataFrame(resultados_anomalias).sort_values("Outliers Detectados", ascending=False)
+            st.dataframe(df_anomalias, use_container_width=True)
+            
+            # Selector para ver gráficamente los outliers de una columna
+            st.markdown("---")
+            st.markdown("**🔍 Ver el detalle de una columna sospechosa:**")
+            col_sospechosa = st.selectbox("Columna a investigar", df_anomalias["Columna"])
+            
+            fig_sospecha = px.scatter(
+                y=df[col_sospechosa], 
+                title=f"Dispersión de {col_sospechosa} (Los puntos fuera de la masa principal son los outliers)",
+                color_discrete_sequence=["#e94560"]
+            )
+            st.plotly_chart(fig_sospecha, use_container_width=True)
+        else:
+            st.success("¡Excelente! No se detectaron valores atípicos severos en tu dataset.")
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.divider()
