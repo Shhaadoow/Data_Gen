@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-📦 Lector de Archivos Parquet — Streamlit App (v3.4 - Versión Definitiva sin Errores)
-Ejecutar: streamlit run app_parquet_3.py
+📦 Lector de Archivos Parquet — Streamlit App (v3.5 - Selector de Archivos)
+Ejecutar: streamlit run app_parquet.py
 """
 
 import streamlit as st
@@ -12,7 +12,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import os
+from pathlib import Path
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -54,7 +54,7 @@ FILAS_MUESTRA_GRAFICAS = 200_000
 
 # HELPERS DE CARGA SÍNCRONA
 def obtener_tamanio_mb(ruta: str) -> float:
-    return os.path.getsize(ruta) / 1024**2
+    return Path(ruta).stat().st_size / 1024**2
 
 def cargar_metadatos(ruta: str):
     return pq.read_metadata(ruta), pq.read_schema(ruta)
@@ -88,19 +88,38 @@ def col_tipos(df, schema):
 
 # PANEL LATERAL (SIDEBAR)
 with st.sidebar:
-    st.markdown("## 🧬 BioParquet Explorer v3.4")
+    st.markdown("## 🧬 BioParquet Explorer v3.5")
     st.divider()
-    ruta_archivo = st.text_input("📂 Ruta del archivo .parquet", value=r"C:\Users\ASUSTUF GAMING\Dropbox\PC\Downloads\Practicum 1.2\Data_Gen\Data\data\bpd.parquet")
-    
+
+    # ── NUEVO: Selector de archivos desde carpeta "data" ──────────────────────
+    from pathlib import Path
+
+    BASE_DIR = Path(__file__).resolve().parent
+    carpeta_data = BASE_DIR.parent / "Data"
+
+    archivos_parquet = sorted(carpeta_data.glob("*.parquet"))
+
     archivo_valido = False
     tamanio_mb = 0.0
-    if ruta_archivo and ruta_archivo.endswith(".parquet") and os.path.exists(ruta_archivo):
+
+    if not archivos_parquet:
+        st.warning("⚠️ No se encontró la carpeta `data/` o no contiene archivos `.parquet`.\n\nCrea una carpeta llamada `data` junto al script y coloca tus archivos ahí.")
+        st.stop()
+    else:
+        archivo_seleccionado = st.selectbox(
+            "📂 Selecciona un archivo",
+            archivos_parquet,
+            format_func=lambda x: x.name
+        )
+        ruta_archivo = str(archivo_seleccionado)
         archivo_valido = True
         tamanio_mb = obtener_tamanio_mb(ruta_archivo)
+
         if tamanio_mb > LIMITE_MUESTRA_MB:
             st.markdown(f'<span class="badge-large">⚡ Archivo Pesado: {tamanio_mb:.0f} MB</span>', unsafe_allow_html=True)
         else:
             st.markdown(f'<span class="badge-ok">✅ Archivo Estable: {tamanio_mb:.1f} MB</span>', unsafe_allow_html=True)
+    # ─────────────────────────────────────────────────────────────────────────
 
     st.divider()
     if archivo_valido:
@@ -110,7 +129,7 @@ with st.sidebar:
 st.title("🧬 Explorador de BioParquet Avanzado")
 
 if not archivo_valido:
-    st.info("👈 Por favor, especifica una ruta válida a tu archivo Parquet en el panel izquierdo.")
+    st.info("👈 Por favor, selecciona un archivo Parquet en el panel izquierdo.")
     st.stop()
 
 meta, schema = cargar_metadatos(ruta_archivo)
@@ -154,7 +173,7 @@ with tab2:
     st.markdown("### 🗂️ Análisis de Tipos de Datos e Integridad")
     st.dataframe(col_tipos(df, schema), use_container_width=True)
 
-# ── Tab 3 · Solución al Gráfico de Dispersión pval vs maf (Plotly Avanzado) ────
+# ── Tab 3 · Gráfico de Dispersión pval vs maf ─────────────────────────────────
 with tab3:
     st.markdown("### 🔬 Gráfico de Distribución Científica: pval frente a maf")
     
@@ -164,7 +183,6 @@ with tab3:
     if col_pval and col_maf:
         df_bi = df[[col_maf, col_pval]].copy()
         
-        # Simulación de control si maf viene con puros "None"
         if df_bi[col_maf].isnull().all() or df_bi[col_maf].isnull().sum() > 0:
             st.info("💡 Nota de control: La columna 'maf' contiene registros nulos ('None'). Para habilitar la proyección científica interactiva se aplicó un algoritmo de simulación estocástica uniforme para los alelos (0.01 - 0.50).")
             np.random.seed(42)
@@ -173,7 +191,6 @@ with tab3:
         if len(df_bi) > 15000:
             df_bi = df_bi.sample(15000, random_state=42)
             
-        # NUEVO GRÁFICO INTERACTIVO SUSTITUTO DE BOKEH OBSOLETO
         fig_bi_pro = px.scatter(
             df_bi, x=col_maf, y=col_pval, color=col_pval,
             color_continuous_scale="Viridis",
@@ -213,7 +230,7 @@ with tab4:
         fig_filas.update_layout(hovermode="x unified", plot_bgcolor="white")
         st.plotly_chart(fig_filas, use_container_width=True)
 
-# ── Tab 5 · Pestaña Categóricas Pro (CORREGIDO EL ERROR DE LA MODA) ────────────
+# ── Tab 5 · Categóricas Pro ────────────────────────────────────────────────────
 with tab5:
     st.markdown("### 🔠 Módulo de Distribución y Frecuencias Categóricas")
     columnas_cat = df.select_dtypes(include=["object", "category"]).columns.tolist()
@@ -249,22 +266,17 @@ with tab5:
                 fig_pie_cat.update_traces(textinfo="percent+label")
                 st.plotly_chart(fig_pie_cat, use_container_width=True)
                 
-            # SOLUCIÓN CRÍTICA AL ENTORNO DE ERROR DOM (TEXTO LIMPIO EN VEZ DE VALORES COMPLEJOS)
             cm1, cm2, cm3 = st.columns(3)
             cm1.metric("Valores Únicos Totales", f"{df[col_cat_elegida].nunique():,}")
-            
-            # Convertimos la moda estrictamente a String plano para evitar el NotFoundError
             moda_texto = str(conteo_valores.iloc[0]["Categoría/Clave"])
             cm2.metric("Moda (Más Frecuente)", moda_texto)
-            
             cm3.metric("Frecuencia de la Moda", f"{conteo_valores.iloc[0]['Frecuencia Absoluta']:,}")
 
-# ── Tab 6 · Correlaciones con Descripción Académica Requerida ─────────────────
+# ── Tab 6 · Correlaciones ──────────────────────────────────────────────────────
 with tab6:
     st.markdown("### 🔥 Matriz de Dependencia Lineal (Pearson)")
     num_corr = df.select_dtypes(include="number")
     if num_corr.shape[1] >= 2:
-        # Excluimos variables si están vacías para limpiar la visualización
         cols_validas = [c for c in num_corr.columns if num_corr[c].dropna().nunique() > 1]
         df_corr_calc = num_corr[cols_validas].dropna()
         
@@ -274,17 +286,16 @@ with tab6:
         )
         st.plotly_chart(fig_matrix, use_container_width=True)
         
-        # EXPLICACIÓN CIENTÍFICA DEL GRÁFICO DE CORRELACIONES PARA LOS PROFESORES
         st.markdown("""
         <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid #e94560; margin-top: 15px;">
             <h4 style="margin-top:0; color:#1e293b; font-family: 'IBM Plex Mono', monospace;">📊 Interpretación Científica del Mapa de Calor (Pearson)</h4>
             <p><strong>¿Qué estamos observando?</strong> Este mapa de calor mide el coeficiente de correlación de Pearson ($r$) entre todas las variables cuantitativas del dataset. Los valores oscilan estrictamente entre $-1.00$ y $+1.00$:</p>
             <ul>
-                <li><strong>$+1.00$ (Rojo Intenso):</strong> Correlación lineal positiva perfecta. Al aumentar una variable, la otra aumenta proporcionalmente (como se ve en las diagonales idénticas).</li>
-                <li><strong>$-1.00$ (Azul Oscuro):</strong> Correlación lineal negativa perfecta. Al aumentar una variable, la otra disminuye. En tu dataset, destaca una correlación muy fuerte de <strong>-0.54</strong> entre el error estándar (<code>se</code>) y el coeficiente informático (<code>info</code>), lo que revela una dependencia estructural inversa directa.</li>
-                <li><strong>$0.00$ (Blanco/Gris):</strong> Ausencia total de relación lineal entre las variables (independencia estadística).</li>
+                <li><strong>$+1.00$ (Rojo Intenso):</strong> Correlación lineal positiva perfecta.</li>
+                <li><strong>$-1.00$ (Azul Oscuro):</strong> Correlación lineal negativa perfecta.</li>
+                <li><strong>$0.00$ (Blanco/Gris):</strong> Ausencia total de relación lineal entre las variables.</li>
             </ul>
-            <p><strong>¿En qué nos ayuda esta pestaña para el Prácticum?</strong> Permite aislar colinealidades. Si dos variables independientes tienen una correlación cercana a 1 o -1, significa que contienen información redundante, lo cual es crucial para optimizar el modelado matemático o predecir errores analíticos en el laboratorio.</p>
+            <p><strong>¿En qué nos ayuda esta pestaña para el Prácticum?</strong> Permite aislar colinealidades para optimizar el modelado matemático o predecir errores analíticos en el laboratorio.</p>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -328,4 +339,4 @@ with st.sidebar:
     st.link_button(f"🌐 Buscar {col_web} en Google", f"https://www.google.com/search?q={col_web}+biologia")
 
 st.divider()
-st.caption("🧬 Panel BioParquet Explorer v3.4 Pro · Diseñado para la sustentación académica de Prácticum.")
+st.caption("🧬 Panel BioParquet Explorer v3.5 Pro · Diseñado para la sustentación académica de Prácticum.")
