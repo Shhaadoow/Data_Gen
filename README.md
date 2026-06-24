@@ -43,7 +43,7 @@ Cada condición se encuentra almacenada en archivos independientes en formato pa
 - Formato: Parquet (columnar, optimizado para análisis de gran escala)
 
 Diccionario de datos:
-https://utpl-my.sharepoint.com/:x:/g/personal/espenarreta_utpl_edu_ec/IQCMs470bopYRpE2rMutRevcAWWzJqsVeucLNY9kgjBSuhY
+https://utpl-my.sharepoint.com/:x:/g/personal/espenarreta_utpl_edu_ec/IQCMs470bopYRpE2rMutRevcATu5GxKlcY9YbHRVqEj0rcY?e=yf5upb
 
 ---
 
