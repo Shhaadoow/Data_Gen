@@ -1,58 +1,133 @@
 # Data_Gen
 
-Repositorio destinado a la documentación del Practicum 1.2 relacionado con un proyecto de genética y análisis de datos GWAS.
+Repositorio destinado al desarrollo del Practicum 1.2, enfocado en el procesamiento y análisis de datos genómicos a gran escala provenientes de estudios GWAS relacionados con trastornos psiquiátricos.
+
+---
 
 ## Descripción
 
-En este repositorio se trabajará con la base de datos:
+Este proyecto utiliza el dataset:
 
-[pgc-psychiatric-gwas-harmonized](https://huggingface.co/datasets/lighteternal/pgc-psychiatric-gwas-harmonized?utm_source=chatgpt.com)
+https://huggingface.co/datasets/lighteternal/pgc-psychiatric-gwas-harmonized
 
-La base contiene información genética relacionada con distintos trastornos psiquiátricos, incluyendo:
+El cual contiene información genética derivada de estudios GWAS (Genome-Wide Association Studies) asociados a múltiples trastornos psiquiátricos.
 
-- ADHD
-- Anxiety
-- Autism
-- Bipolar Disorder
-- MDD
-- OCD
-- PTSD
-- Schizophrenia
-- Substance Use
-- Entre otros
+El objetivo principal es realizar análisis exploratorio, estructuración y agregación de señales genéticas para la identificación de regiones genómicas (loci) relevantes y su posible comparación entre distintos trastornos.
 
-## Información de la base de datos
+---
 
-- Número total de filas: 226.441.199
-- Tamaño aproximado: 11.5 GB
-- Total de columnas: 32
-- Formato principal: `.parquet`
-- Diccionario de Datos: [https://docs.google.com/document/d/1sHQ7o-IevsObS7qBHubJnO53ufvYo9_v/edit?usp=sharing&ouid=110155048301178982627&rtpof=true&sd=true](https://utpl-my.sharepoint.com/:x:/g/personal/espenarreta_utpl_edu_ec/IQCMs470bopYRpE2rMutRevcAWWzJqsVeucLNY9kgjBSuhI?e=SOdFzY)
+## Trastornos incluidos
 
-Cada trastorno posee su propio archivo parquet, el cual será procesado y analizado individualmente.
+El dataset contempla múltiples condiciones psiquiátricas:
 
-## Herramientas utilizadas
+- ADHD  
+- Anxiety disorders  
+- Autism spectrum disorder  
+- Bipolar disorder  
+- Major depressive disorder (MDD)  
+- Obsessive-compulsive disorder (OCD)  
+- Post-traumatic stress disorder (PTSD)  
+- Schizophrenia  
+- Substance use disorders  
+- Otros trastornos relacionados  
 
-- [Visual Studio Code](https://code.visualstudio.com/?utm_source=chatgpt.com)
-- [Python](https://www.python.org/?utm_source=chatgpt.com)
-- [Jupyter Notebook](https://jupyter.org/?utm_source=chatgpt.com)
+Cada condición se encuentra almacenada en archivos independientes en formato parquet.
 
-## Librerías utilizadas
+---
 
-- [Polars](https://pola.rs/?utm_source=chatgpt.com)
+## Características del dataset
 
-## Objetivo
+- Total de registros: 226.441.199  
+- Tamaño aproximado: 11.5 GB  
+- Número de columnas: 32  
+- Formato: Parquet (columnar, optimizado para análisis de gran escala)
 
-Analizar datasets genéticos de gran tamaño utilizando herramientas optimizadas para procesamiento de datos masivos, explorando estructuras, columnas, estadísticas y posibles patrones asociados a trastornos psiquiátricos.
+Diccionario de datos:
+https://utpl-my.sharepoint.com/:x:/g/personal/espenarreta_utpl_edu_ec/IQCMs470bopYRpE2rMutRevcAWWzJqsVeucLNY9kgjBSuhY
 
-## AnálisisG1 (Michael Alejandro Carrión y Kenny)
+---
 
-- ptsd.parquet = 2.171 GB
-- adhd.parquet = 1.206 GB
-- eating_disorders.parquet = 0.965 GB
+## Tecnologías utilizadas
 
-## AnálisisG2 (Eduardo y Pablo)
+- Python  
+- Jupyter Notebook  
+- Visual Studio Code  
 
-- mdd.parquet = 1.246 GB
-- schizophrenia.parquet = 0.943 GB
-- autism.parquet = 0.858 GB
+---
+
+## Librerías principales
+
+- Polars  
+- PyArrow  
+- Pandas  
+
+---
+
+## Objetivo del proyecto
+
+Analizar datos genómicos a gran escala mediante técnicas de procesamiento eficiente para:
+
+- Explorar variantes genéticas asociadas a trastornos psiquiátricos  
+- Identificar señales significativas a nivel de SNPs  
+- Agrupar variantes en regiones genómicas (loci) mediante ventanas de proximidad  
+- Reducir la dimensionalidad de datos masivos a unidades interpretables  
+- Facilitar análisis comparativos entre trastornos  
+
+---
+
+## Metodología
+
+### Exploración de datos
+Inspección de la estructura del dataset e identificación de columnas relevantes como SNP, posición genómica, cromosoma, p-value y trastorno asociado.
+
+### Filtrado de variantes
+Aplicación de criterios estadísticos para la selección de variantes genéticas relevantes.
+
+### Agrupación de loci
+Definición de regiones genómicas mediante:
+
+- Ventana de agrupación (kb)
+- Margen de proximidad para solapamiento (kb)
+
+Estos parámetros permiten consolidar variantes cercanas en regiones genómicas interpretables.
+
+### Análisis comparativo
+Identificación de coincidencias y diferencias entre regiones genómicas asociadas a distintos trastornos.
+
+---
+
+## Distribución del trabajo
+
+### Grupo G1
+- Michael Alejandro Carrión  
+- Kenny  
+
+Datasets:
+- PTSD (2.171 GB)  
+- ADHD (1.206 GB)  
+- Eating disorders (0.965 GB)  
+
+### Grupo G2
+- Eduardo  
+- Pablo  
+
+Datasets:
+- Major depressive disorder (1.246 GB)  
+- Schizophrenia (0.943 GB)  
+- Autism (0.858 GB)  
+
+---
+
+## Escalabilidad del proyecto
+
+- Análisis cross-disorder entre trastornos psiquiátricos  
+- Modelos predictivos basados en variantes genéticas  
+- Integración con bases externas como GWAS Catalog o Ensembl  
+- Migración a procesamiento distribuido con Apache Spark  
+- Análisis funcional y anotación genética avanzada  
+
+---
+
+## Conclusión
+
+El proyecto permite transformar datos genómicos masivos en estructuras analíticas interpretables mediante agregación de loci y procesamiento eficiente. Esto facilita el análisis comparativo entre trastornos psiquiátricos y abre la puerta a futuras aplicaciones en modelos predictivos y genética computacional avanzada.
